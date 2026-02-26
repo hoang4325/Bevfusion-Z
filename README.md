@@ -7,3 +7,4 @@
 - For installation, see: [INSTALLATION.md](INSTALLATION.md) 🚀
 - For data & model preparation, see: [PREPARATION.md](PREPARATION.md) 📚
 - For evaluation & training, see: [RUN.md](RUN.md) ▶️
+- For visualization, see: [VISUALIZATION.md](VISUALIZATION.md) 👁️
