@@ -353,10 +353,11 @@ class BaseDepthTransform(BaseTransform):
                 if self.depth_input == 'scalar':
                     depth[b, c, 0, masked_coords[:, 0], masked_coords[:, 1]] = masked_dist
                 elif self.depth_input == 'one-hot':
-                    # Clamp depths that are too big to D
+                    # Convert metric depth to depth bin index, then clamp to valid range [0, D-1].
                     # These can arise when the point range filter is different from the dbound. 
-                    masked_dist = torch.clamp(masked_dist, max=self.D-1)
-                    depth[b, c, masked_dist.long(), masked_coords[:, 0], masked_coords[:, 1]] = 1.0
+                    depth_indices = (masked_dist - self.dbound[0]) / self.dbound[2]
+                    depth_indices = torch.clamp(depth_indices, min=0, max=self.D - 1)
+                    depth[b, c, depth_indices.long(), masked_coords[:, 0], masked_coords[:, 1]] = 1.0
 
                 if self.add_depth_features:
                     depth[b, c, -points[b].shape[-1]:, masked_coords[:, 0], masked_coords[:, 1]] = points[b][boolmask2idx(on_img[c])].transpose(0,1)
