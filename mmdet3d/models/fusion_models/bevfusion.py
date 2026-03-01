@@ -240,7 +240,7 @@ class BEVFusion(Base3DFusionModel):
         img_aug_matrix,
         lidar_aug_matrix,
         metas,
-        depths,
+        depths=None,
         radar=None,
         gt_masks_bev=None,
         gt_bboxes_3d=None,
