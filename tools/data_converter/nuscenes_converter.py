@@ -243,18 +243,27 @@ def _fill_trainval_infos(nusc,
             radar_token = sample['data'][radar_name]
             radar_rec = nusc.get('sample_data', radar_token)
             sweeps = []
-            while len(sweeps) < max_radar_sweeps:
-                if not radar_rec['prev'] == '':
-                    radar_path, _, radar_intrin = nusc.get_sample_data(radar_token)
-                    radar_info = obtain_sensor2top(nusc, radar_token, l2e_t, l2e_r_mat, e2g_t, e2g_r_mat, radar_name)
-                    sweeps.append(radar_info)
-                    radar_token = radar_rec['prev']
+            last_radar_info = None
+
+            # Move to the previous frame before collecting sweeps,
+            # so we don't include the keyframe as a "sweep" of itself.
+            radar_token = radar_rec['prev']
+            if radar_token != '':
+                radar_rec = nusc.get('sample_data', radar_token)
+
+            while len(sweeps) < max_radar_sweeps and radar_token != '':
+                radar_info = obtain_sensor2top(nusc, radar_token, l2e_t, l2e_r_mat, e2g_t, e2g_r_mat, radar_name)
+                sweeps.append(radar_info)
+                last_radar_info = radar_info
+
+                radar_token = radar_rec['prev']
+                if radar_token != '':
                     radar_rec = nusc.get('sample_data', radar_token)
-                else:
-                    radar_path, _, radar_intrin = nusc.get_sample_data(radar_token)
-                    radar_info = obtain_sensor2top(nusc, radar_token, l2e_t, l2e_r_mat,e2g_t, e2g_r_mat, radar_name)
-                    sweeps.append(radar_info)
-            
+
+            # Pad by repeating the last available sweep if history is shorter than max_radar_sweeps.
+            if last_radar_info is not None and len(sweeps) < max_radar_sweeps:
+                sweeps.extend([last_radar_info] * (max_radar_sweeps - len(sweeps)))
+
             info['radars'].update({radar_name: sweeps})
         # obtain sweeps for a single key-frame
         sd_rec = nusc.get('sample_data', sample['data']['LIDAR_TOP'])
