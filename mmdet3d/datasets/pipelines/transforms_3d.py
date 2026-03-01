@@ -36,16 +36,6 @@ class GTDepth:
         camera2lidar = data['camera2lidar'].data
         lidar2image = data['lidar2image'].data
 
-        rots = sensor2ego[..., :3, :3]
-        trans = sensor2ego[..., :3, 3]
-        intrins = cam_intrinsic[..., :3, :3]
-        post_rots = img_aug_matrix[..., :3, :3]
-        post_trans = img_aug_matrix[..., :3, 3]
-        lidar2ego_rots = lidar2ego[..., :3, :3]
-        lidar2ego_trans = lidar2ego[..., :3, 3]
-        camera2lidar_rots = camera2lidar[..., :3, :3]
-        camera2lidar_trans = camera2lidar[..., :3, 3]
-
         points = data['points'].data 
         img = data['img'].data
 
