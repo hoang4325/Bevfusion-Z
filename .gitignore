@@ -1,3 +1,6 @@
+# CodeQL tool artifacts
+_codeql_detected_source_root
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

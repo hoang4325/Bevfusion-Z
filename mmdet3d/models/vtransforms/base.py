@@ -8,6 +8,9 @@ from mmdet3d.ops import bev_pool
 
 __all__ = ["BaseTransform", "BaseDepthTransform"]
 
+def boolmask2idx(mask):
+    # A utility function, workaround for ONNX not supporting 'nonzero'
+    return torch.nonzero(mask).squeeze(1).tolist()
 
 def gen_dx_bx(xbound, ybound, zbound):
     dx = torch.Tensor([row[2] for row in [xbound, ybound, zbound]])
@@ -29,6 +32,7 @@ class BaseTransform(nn.Module):
         ybound: Tuple[float, float, float],
         zbound: Tuple[float, float, float],
         dbound: Tuple[float, float, float],
+        use_points='lidar',
     ) -> None:
         super().__init__()
         self.in_channels = in_channels
@@ -38,6 +42,8 @@ class BaseTransform(nn.Module):
         self.ybound = ybound
         self.zbound = zbound
         self.dbound = dbound
+        self.use_points = use_points
+        assert use_points in ['radar', 'lidar']
 
         dx, bx, nx = gen_dx_bx(self.xbound, self.ybound, self.zbound)
         self.dx = nn.Parameter(dx, requires_grad=False)
@@ -167,6 +173,7 @@ class BaseTransform(nn.Module):
         self,
         img,
         points,
+        radar, 
         camera2ego,
         lidar2ego,
         lidar2camera,
@@ -175,7 +182,6 @@ class BaseTransform(nn.Module):
         camera2lidar,
         img_aug_matrix,
         lidar_aug_matrix,
-        metas,  # fix for visualization
         **kwargs,
     ):
         rots = camera2ego[..., :3, :3]
@@ -200,18 +206,75 @@ class BaseTransform(nn.Module):
             extra_rots=extra_rots,
             extra_trans=extra_trans,
         )
+        mats_dict = {
+            'intrin_mats': camera_intrinsics, 
+            'ida_mats': img_aug_matrix, 
+            'bda_mat': lidar_aug_matrix,
+            'sensor2ego_mats': camera2ego, 
+        }
+        x = self.get_cam_feats(img, mats_dict)
 
-        x = self.get_cam_feats(img)
+        use_depth = False
+        if isinstance(x, tuple):
+            x, depth = x 
+            use_depth = True
+        
         x = self.bev_pool(geom, x)
-        return x
+
+        if use_depth:
+            return x, depth 
+        else:
+            return x
+
 
 
 class BaseDepthTransform(BaseTransform):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        image_size: Tuple[int, int],
+        feature_size: Tuple[int, int],
+        xbound: Tuple[float, float, float],
+        ybound: Tuple[float, float, float],
+        zbound: Tuple[float, float, float],
+        dbound: Tuple[float, float, float],
+        use_points='lidar',
+        depth_input='scalar',
+        height_expand=None,
+        add_depth_features=None,
+    ) -> None:
+        super().__init__(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            image_size=image_size,
+            feature_size=feature_size,
+            xbound=xbound,
+            ybound=ybound,
+            zbound=zbound,
+            dbound=dbound,
+            use_points=use_points,
+        )
+        self.depth_input = depth_input
+        assert depth_input in ['scalar', 'one-hot']
+
+        # Set default according to use_points if not provided
+        # True for radar, False for lidar -> https://github.com/mit-han-lab/bevfusion/issues/478#issuecomment-1677947282
+        if height_expand is None:
+            self.height_expand = (use_points == 'radar')
+        else:
+            self.height_expand = height_expand
+        if add_depth_features is None:
+            self.add_depth_features = (use_points == 'radar')
+        else:
+            self.add_depth_features = add_depth_features
+
     @force_fp32()
     def forward(
         self,
         img,
         points,
+        radar, 
         sensor2ego,
         lidar2ego,
         lidar2camera,
@@ -233,12 +296,22 @@ class BaseDepthTransform(BaseTransform):
         camera2lidar_rots = camera2lidar[..., :3, :3]
         camera2lidar_trans = camera2lidar[..., :3, 3]
 
-        # print(img.shape, self.image_size, self.feature_size)
+        if self.use_points == 'radar':
+            points = radar
+
+        if self.height_expand:
+            for b in range(len(points)):
+                points_repeated = points[b].repeat_interleave(8, dim=0)
+                points_repeated[:, 2] = torch.arange(0.25, 2.25, 0.25).repeat(points[b].shape[0])
+                points[b] = points_repeated
 
         batch_size = len(points)
-        depth = torch.zeros(batch_size, img.shape[1], 1, *self.image_size).to(
-            points[0].device
-        )
+        depth_in_channels = 1 if self.depth_input=='scalar' else self.D
+        if self.add_depth_features:
+            depth_in_channels += points[0].shape[1]
+
+        depth = torch.zeros(batch_size, img.shape[1], depth_in_channels, *self.image_size, device=points[0].device)
+
 
         for b in range(batch_size):
             cur_coords = points[b][:, :3]
@@ -276,7 +349,18 @@ class BaseDepthTransform(BaseTransform):
             for c in range(on_img.shape[0]):
                 masked_coords = cur_coords[c, on_img[c]].long()
                 masked_dist = dist[c, on_img[c]]
-                depth[b, c, 0, masked_coords[:, 0], masked_coords[:, 1]] = masked_dist
+
+                if self.depth_input == 'scalar':
+                    depth[b, c, 0, masked_coords[:, 0], masked_coords[:, 1]] = masked_dist
+                elif self.depth_input == 'one-hot':
+                    # Convert metric depth to depth bin index, then clamp to valid range [0, D-1].
+                    # These can arise when the point range filter is different from the dbound. 
+                    depth_indices = (masked_dist - self.dbound[0]) / self.dbound[2]
+                    depth_indices = torch.clamp(depth_indices, min=0, max=self.D - 1)
+                    depth[b, c, depth_indices.long(), masked_coords[:, 0], masked_coords[:, 1]] = 1.0
+
+                if self.add_depth_features:
+                    depth[b, c, -points[b].shape[-1]:, masked_coords[:, 0], masked_coords[:, 1]] = points[b][boolmask2idx(on_img[c])].transpose(0,1)
 
         extra_rots = lidar_aug_matrix[..., :3, :3]
         extra_trans = lidar_aug_matrix[..., :3, 3]
@@ -290,6 +374,23 @@ class BaseDepthTransform(BaseTransform):
             extra_trans=extra_trans,
         )
 
-        x = self.get_cam_feats(img, depth)
+        mats_dict = {
+            'intrin_mats': cam_intrinsic,
+            'ida_mats': img_aug_matrix,
+            'bda_mat': lidar_aug_matrix,
+            'sensor2ego_mats': sensor2ego,
+        }
+        x = self.get_cam_feats(img, depth, mats_dict)
+
+        use_depth = False
+        if type(x) == tuple:
+            x, depth = x 
+            use_depth = True
+        
         x = self.bev_pool(geom, x)
-        return x
+
+        if use_depth:
+            return x, depth 
+        else:
+            return x
+

@@ -215,8 +215,14 @@ class NuScenesDataset(Custom3DDataset):
             lidar_path=info["lidar_path"],
             sweeps=info["sweeps"],
             timestamp=info["timestamp"],
-            location=info["location"],
+            location=info.get('location', None), 
+            radar=info.get('radars', None), 
         )
+
+        if data['location'] is None:
+            data.pop('location')
+        if data['radar'] is None:
+            data.pop('radar')
 
         # ego to global transform
         ego2global = np.eye(4).astype(np.float32)

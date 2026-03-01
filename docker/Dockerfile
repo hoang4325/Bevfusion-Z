@@ -123,6 +123,10 @@ RUN source /root/miniconda3/bin/activate bevfusion && \
         flash-attn==1.0.9 \
         yapf==0.40.1 \
         mpi4py==3.0.3 \
+        future \
+        tensorboard \
+        cumm-cu113 \
+        spconv-cu113 \
         numpy==1.23.5 \
         "opencv-python<4.6"
 
