@@ -1,23 +1,16 @@
 from torch import nn
 
 from typing import Any, Dict
-from functools import cached_property
 
 import torch
-from mmcv.cnn import build_conv_layer, build_norm_layer
-from mmcv.cnn.resnet import make_res_layer, BasicBlock
+from mmcv.cnn import build_norm_layer
+from mmcv.cnn.resnet import BasicBlock
 from torch import nn
 from torch.nn import functional as F
 
 from mmdet3d.models.builder import build_backbone
 from mmdet.models import BACKBONES
-from torchvision.utils import save_image
 from mmdet3d.ops import feature_decorator
-from mmcv.cnn.bricks.non_local import NonLocal2d
-
-from flash_attn.flash_attention import FlashMHA
-
-
 __all__ = ["RadarFeatureNet", "RadarEncoder"]
 
 
