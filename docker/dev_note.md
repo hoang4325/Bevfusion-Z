@@ -1,4 +1,4 @@
-# DEV NOTE 20260222
+# DEV NOTE 20260301
 
 This file contains the original, fully-tested manual steps used to build the BEVFusion training environment interactively inside a container.
 
@@ -255,6 +255,10 @@ This file contains the original, fully-tested manual steps used to build the BEV
       flash-attn==1.0.9 \
       yapf==0.40.1 \
       mpi4py==3.0.3 \
+      future \
+      tensorboard \
+      cumm-cu113 \
+      spconv-cu113 \
       numpy==1.23.5 \
       "opencv-python<4.6"
   ```
