@@ -1,10 +1,11 @@
 #include <torch/torch.h>
 
-// CUDA function declarations
-// void feature_decorator(int b, int d, int h, int w, int n, int c, int n_intervals, const float* x,
-//     const int* geom_feats, const int* interval_starts, const int* interval_lengths, float* out);
-
-void feature_decorator(float* out);
+// CUDA function declaration
+void feature_decorator(
+    int n, int max_pts, int feat_dim, int out_dim,
+    const float* x, const int* y, const int* z,
+    float vx, float vy, float x_offset, float y_offset,
+    int use_cluster, int use_center, float* out);
 
 at::Tensor feature_decorator_forward(
   const at::Tensor _x, 
@@ -30,7 +31,9 @@ at::Tensor feature_decorator_forward(
   const float* x = _x.data_ptr<float>();
   const int* y = _y.data_ptr<int>();
   const int* z = _z.data_ptr<int>();
-  feature_decorator(out);
+  feature_decorator(n, c, a, a + decorate_dims, x, y, z,
+                    (float)vx, (float)vy, (float)x_offset, (float)y_offset,
+                    use_cluster, use_center, out);
   return _out;
 
 }
@@ -40,6 +43,3 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("feature_decorator_forward", &feature_decorator_forward,
         "feature_decorator_forward");
 }
-
-// static auto registry =
-//     torch::RegisterOperators("feature_decorator_ext::feature_decorator_forward", &feature_decorator_forward);
