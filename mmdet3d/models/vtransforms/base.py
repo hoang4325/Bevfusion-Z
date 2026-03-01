@@ -231,7 +231,7 @@ class BaseTransform(nn.Module):
         x = self.get_cam_feats(img, mats_dict)
 
         use_depth = False
-        if type(x) == tuple:
+        if isinstance(x, tuple):
             x, depth = x 
             use_depth = True
         
