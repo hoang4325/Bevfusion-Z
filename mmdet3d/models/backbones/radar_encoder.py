@@ -103,7 +103,6 @@ class RadarFeatureNet(nn.Module):
 
         self.in_channels = in_channels
         in_channels += 2
-        # in_channels += 5
         self._with_distance = with_distance
         self.export_onnx = False
 
@@ -135,12 +134,6 @@ class RadarFeatureNet(nn.Module):
 
         if not self.export_onnx:
             dtype = features.dtype
-
-            # Find distance of x, y, and z from cluster center
-            points_mean = features[:, :, :3].sum(dim=1, keepdim=True) / num_voxels.type_as(
-                features
-            ).view(-1, 1, 1)
-            f_cluster = features[:, :, :3] - points_mean
 
             f_center = torch.zeros_like(features[:, :, :2])
             f_center[:, :, 0] = features[:, :, 0] - (
