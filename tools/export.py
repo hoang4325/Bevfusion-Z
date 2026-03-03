@@ -3,6 +3,8 @@ import os
 import time
 import warnings
 
+import dirty_patches
+
 import mmcv
 import onnx
 import torch
