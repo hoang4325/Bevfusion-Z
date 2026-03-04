@@ -1,4 +1,4 @@
-# DEV NOTE 20260303 (CUDA 12.1)
+# DEV NOTE 20260304 (CUDA 12.1)
 
 This file contains the original, fully-tested manual steps used to build the BEVFusion training environment interactively inside a container.
 
@@ -237,7 +237,7 @@ This file contains the original, fully-tested manual steps used to build the BEV
 
   </details>
 
-- Install [MMCV v1.7.3](https://github.com/rathaROG/mmcv/releases/tag/v1.7.3) with CUDA:
+- Install [MMCV v1.7.3](https://github.com/rathaROG/mmcv/releases/tag/v1.7.3-bevfusionx) with CUDA:
 
   <details><summary>Show more details</summary>
 
@@ -245,14 +245,14 @@ This file contains the original, fully-tested manual steps used to build the BEV
 
     ```bash
     cd ~
-    wget -O https://github.com/rathaROG/mmcv/archive/refs/tags/v1.7.3.tar.gz
-    tar -xvf mmcv-1.7.3.tar.gz
+    wget -O mmcv.tar.gz https://github.com/rathaROG/mmcv/archive/refs/tags/v1.7.3-bevfusionx.tar.gz
+    mkdir -p mmcv && tar -xzf mmcv.tar.gz --strip-components=1 -C mmcv
     ```
 
   - Config cmake, build, and install:
 
     ```bash
-    cd mmcv-1.7.3
+    cd mmcv
     MAKEFLAGS="-j$(nproc)" MMCV_WITH_OPS=1 pip install -e . --no-build-isolation -v
     ```
 
