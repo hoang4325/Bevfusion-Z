@@ -1,4 +1,4 @@
-# Docker (CUDA 12.6) 🐳
+# Docker (CUDA 12.8) 🐳
 
 This guide describes how to build and run the BEVFusion training environment using:
 
@@ -31,7 +31,7 @@ For the original fully manual, step-by-step dev notes, see: [`dev_note.md`](dev_
 
   ```bash
   # export DOCKER_BUILDKIT=0  # Use legacy builder
-  docker build -t bev-train:cu126 .
+  docker build -t bev-train:cu128 .
   ```
 
 ## Export image
@@ -39,8 +39,8 @@ For the original fully manual, step-by-step dev notes, see: [`dev_note.md`](dev_
 - From host:
 
   ```bash
-  docker save bev-train:cu126 -o bev_train_cu126_2026.tar
-  sha256sum bev_train_cu126_2026.tar > bev_train_cu126_2026.tar.sha256
+  docker save bev-train:cu128 -o bev_train_cu128_2026.tar
+  sha256sum bev_train_cu128_2026.tar > bev_train_cu128_2026.tar.sha256
   ```
 
 ## Run container (CLI)
@@ -49,18 +49,18 @@ For the original fully manual, step-by-step dev notes, see: [`dev_note.md`](dev_
 
   ```bash
   docker run --gpus all -it \
-      --name bev-train-cu126 \
+      --name bev-train-cu128 \
       --shm-size=32g \
-      -v /home/$USER/docker/bev_train_cu126:/workspace \
-      bev-train:cu126 \
+      -v /home/$USER/docker/bev_train_cu128:/workspace \
+      bev-train:cu128 \
       bash
   ```
 
 - Re-enter later:
 
   ```bash
-  docker restart bev-train-cu126
-  docker exec -it bev-train-cu126 bash
+  docker restart bev-train-cu128
+  docker exec -it bev-train-cu128 bash
   ```
 
 ## Run container (Compose [`docker-compose.yml`](docker-compose.yml))
@@ -74,7 +74,7 @@ For the original fully manual, step-by-step dev notes, see: [`dev_note.md`](dev_
 - Enter the running container:
 
   ```bash
-  docker exec -it bev-train-cu126 bash
+  docker exec -it bev-train-cu128 bash
   ```
 
 - Stop and remove:
@@ -91,8 +91,8 @@ For the original fully manual, step-by-step dev notes, see: [`dev_note.md`](dev_
 - Enter the container from host:
 
   ```bash
-  docker restart bev-train-cu126
-  docker exec -it bev-train-cu126 bash
+  docker restart bev-train-cu128
+  docker exec -it bev-train-cu128 bash
   ```
 
 - If you didn't follow [Prerequisites](#prerequisites) or due to some unknown reasons, MMCV might need a rebuild to get a proper CUDA support:
@@ -120,7 +120,7 @@ For the original fully manual, step-by-step dev notes, see: [`dev_note.md`](dev_
   cd /workspace
   git clone https://github.com/rathaumons/bevfusionx.git
   cd bevfusionx
-  git checkout cuda126
+  git checkout cu128
   python setup.py develop
   ```
 
