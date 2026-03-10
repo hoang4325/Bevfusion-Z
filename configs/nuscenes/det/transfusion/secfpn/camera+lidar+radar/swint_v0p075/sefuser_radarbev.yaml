@@ -1,0 +1,25 @@
+# Enhanced trimodal config: SEFuser + RadarBEVBackbone
+#
+# Key differences from convfuser.yaml:
+#   1. SEFuser replaces ConvFuser — adds per-sensor channel attention (SE)
+#      and spatial attention gate so the network learns WHERE each sensor
+#      matters most (radar for velocity, camera for semantics, lidar for geometry).
+#   2. RadarBEVBackbone densifies the sparse radar BEV pseudo-image before
+#      fusion, propagating information from occupied pillars to neighbours.
+
+model:
+  fuser:
+    type: SEFuser
+    in_channels: [80, 256, 64]
+    out_channels: 256
+    se_reduction: 4
+
+  encoders:
+    radar:
+      backbone:
+        pts_bev_encoder:
+          type: RadarBEVBackbone
+          in_channels: 64
+          mid_channels: 128
+          out_channels: 64
+          num_blocks: 3

@@ -1,0 +1,6 @@
+model:
+  fuser:
+    type: SEFuser
+    in_channels: [80, 256, 64]
+    out_channels: 256
+    se_reduction: 4

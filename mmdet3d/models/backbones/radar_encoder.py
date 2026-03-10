@@ -1,7 +1,5 @@
 # Added by UMONS-Numediart, Ratha SIV in 2026.
 
-from torch import nn
-
 from typing import Any, Dict
 
 import torch
@@ -65,9 +63,10 @@ class RFNLayer(nn.Module):
 
     def forward(self, inputs):
         x = self.linear(inputs)
-        torch.backends.cudnn.enabled = False
-        x = self.norm(x.permute(0, 2, 1).contiguous()).permute(0, 2, 1).contiguous()
-        torch.backends.cudnn.enabled = True
+        # Apply BN1d via reshape: (N, L, C) -> (N*L, C) -> BN1d -> (N, L, C)
+        # Avoids disabling cuDNN which forces CUDA sync every forward pass
+        N, L, C = x.shape
+        x = self.norm(x.reshape(N * L, C)).reshape(N, L, C)
         x = F.relu(x)
 
         if self.last_vfe:

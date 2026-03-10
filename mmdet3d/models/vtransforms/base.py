@@ -12,7 +12,7 @@ __all__ = ["BaseTransform", "BaseDepthTransform"]
 
 def boolmask2idx(mask):
     # A utility function, workaround for ONNX not supporting 'nonzero'
-    return torch.nonzero(mask).squeeze(1).tolist()
+    return torch.nonzero(mask).squeeze(1)
 
 def gen_dx_bx(xbound, ybound, zbound):
     dx = torch.Tensor([row[2] for row in [xbound, ybound, zbound]])
@@ -99,7 +99,7 @@ class BaseTransform(nn.Module):
         # B x N x D x H x W x 3
         points = self.frustum - post_trans.view(B, N, 1, 1, 1, 3)
         points = (
-            torch.inverse(post_rots)
+            torch.linalg.inv(post_rots)
             .view(B, N, 1, 1, 1, 3, 3)
             .matmul(points.unsqueeze(-1))
         )
@@ -111,7 +111,7 @@ class BaseTransform(nn.Module):
             ),
             5,
         )
-        combine = camera2lidar_rots.matmul(torch.inverse(intrins))
+        combine = camera2lidar_rots.matmul(torch.linalg.inv(intrins))
         points = combine.view(B, N, 1, 1, 1, 3, 3).matmul(points).squeeze(-1)
         points += camera2lidar_trans.view(B, N, 1, 1, 1, 3)
 
@@ -143,12 +143,8 @@ class BaseTransform(nn.Module):
         # flatten indices
         geom_feats = ((geom_feats - (self.bx - self.dx / 2.0)) / self.dx).long()
         geom_feats = geom_feats.view(Nprime, 3)
-        batch_ix = torch.cat(
-            [
-                torch.full([Nprime // B, 1], ix, device=x.device, dtype=torch.long)
-                for ix in range(B)
-            ]
-        )
+        batch_ix = torch.arange(B, device=x.device, dtype=torch.long)\
+            .view(B, 1).expand(B, Nprime // B).reshape(Nprime, 1)
         geom_feats = torch.cat((geom_feats, batch_ix), 1)
 
         # filter out points that are outside box
@@ -302,9 +298,10 @@ class BaseDepthTransform(BaseTransform):
             points = radar
 
         if self.height_expand:
+            heights = torch.arange(0.25, 2.25, 0.25, device=points[0].device)
             for b in range(len(points)):
                 points_repeated = points[b].repeat_interleave(8, dim=0)
-                points_repeated[:, 2] = torch.arange(0.25, 2.25, 0.25).repeat(points[b].shape[0])
+                points_repeated[:, 2] = heights.repeat(points[b].shape[0])
                 points[b] = points_repeated
 
         batch_size = len(points)
@@ -323,7 +320,7 @@ class BaseDepthTransform(BaseTransform):
 
             # inverse aug
             cur_coords -= cur_lidar_aug_matrix[:3, 3]
-            cur_coords = torch.inverse(cur_lidar_aug_matrix[:3, :3]).matmul(
+            cur_coords = torch.linalg.inv(cur_lidar_aug_matrix[:3, :3]).matmul(
                 cur_coords.transpose(1, 0)
             )
             # lidar2image
@@ -385,7 +382,7 @@ class BaseDepthTransform(BaseTransform):
         x = self.get_cam_feats(img, depth, mats_dict)
 
         use_depth = False
-        if type(x) == tuple:
+        if isinstance(x, tuple):
             x, depth = x 
             use_depth = True
         

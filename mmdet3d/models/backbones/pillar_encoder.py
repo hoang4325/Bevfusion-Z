@@ -68,9 +68,10 @@ class PFNLayer(nn.Module):
     def forward(self, inputs):
 
         x = self.linear(inputs)
-        torch.backends.cudnn.enabled = False
-        x = self.norm(x.permute(0, 2, 1).contiguous()).permute(0, 2, 1).contiguous()
-        torch.backends.cudnn.enabled = True
+        # Apply BN1d via reshape: (N, L, C) -> (N*L, C) -> BN1d -> (N, L, C)
+        # Avoids disabling cuDNN which forces CUDA sync every forward pass
+        N, L, C = x.shape
+        x = self.norm(x.reshape(N * L, C)).reshape(N, L, C)
         x = F.relu(x)
 
         x_max = torch.max(x, dim=1, keepdim=True)[0]

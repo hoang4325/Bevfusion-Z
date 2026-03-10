@@ -209,18 +209,6 @@ class BEVFusion(Base3DFusionModel):
         batch_size = coords[-1, 0] + 1
         x = self.encoders[sensor]["backbone"](feats, coords, batch_size, sizes=sizes)
         return x
-    
-    # def extract_lidar_features(self, x) -> torch.Tensor:
-    #     feats, coords, sizes = self.voxelize(x)
-    #     batch_size = coords[-1, 0] + 1
-    #     x = self.encoders["lidar"]["backbone"](feats, coords, batch_size, sizes=sizes)
-    #     return x
-
-    # def extract_radar_features(self, x) -> torch.Tensor:
-    #     feats, coords, sizes = self.radar_voxelize(x)
-    #     batch_size = coords[-1, 0] + 1
-    #     x = self.encoders["radar"]["backbone"](feats, coords, batch_size, sizes=sizes)
-    #     return x
 
     @torch.no_grad()
     @force_fp32()
@@ -251,36 +239,6 @@ class BEVFusion(Base3DFusionModel):
                 feats = feats.contiguous()
 
         return feats, coords, sizes
-
-    # @torch.no_grad()
-    # @force_fp32()
-    # def radar_voxelize(self, points):
-    #     feats, coords, sizes = [], [], []
-    #     for k, res in enumerate(points):
-    #         ret = self.encoders["radar"]["voxelize"](res)
-    #         if len(ret) == 3:
-    #             # hard voxelize
-    #             f, c, n = ret
-    #         else:
-    #             assert len(ret) == 2
-    #             f, c = ret
-    #             n = None
-    #         feats.append(f)
-    #         coords.append(F.pad(c, (1, 0), mode="constant", value=k))
-    #         if n is not None:
-    #             sizes.append(n)
-
-    #     feats = torch.cat(feats, dim=0)
-    #     coords = torch.cat(coords, dim=0)
-    #     if len(sizes) > 0:
-    #         sizes = torch.cat(sizes, dim=0)
-    #         if self.voxelize_reduce:
-    #             feats = feats.sum(dim=1, keepdim=False) / sizes.type_as(feats).view(
-    #                 -1, 1
-    #             )
-    #             feats = feats.contiguous()
-
-    #     return feats, coords, sizes
 
     @auto_fp16(apply_to=("img", "points"))
     def forward(
