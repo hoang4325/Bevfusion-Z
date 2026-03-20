@@ -154,6 +154,7 @@ class SEFuser(nn.Module):
             nn.BatchNorm2d(out_channels),
         )
         self.relu = nn.ReLU(True)
+        self._last_sensor_attention_mean: Dict[str, torch.Tensor] = {}
 
     # ------------------------------------------------------------------
     # Public helpers
@@ -218,6 +219,10 @@ class SEFuser(nn.Module):
         # --- Spatial attention gate from concatenated features ---
         concat = torch.cat(projected, dim=1)            # (B, out_ch*N, H, W)
         attn = self.spatial_gate(concat)                 # (B, N, H, W)
+        self._last_sensor_attention_mean = {
+            name: attn[:, i : i + 1, :, :].detach().float().mean()
+            for i, name in enumerate(self.sensor_names)
+        }
 
         # --- Weighted sum across sensors ---
         fused = torch.zeros_like(projected[0])

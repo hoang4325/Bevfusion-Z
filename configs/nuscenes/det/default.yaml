@@ -13,6 +13,9 @@ radar_normalize: false
 
 model:
   type: BEVFusion
+  instrumentation:
+    enabled: false
+    interval: 200
   encoders: null
   fuser: null
   heads:
