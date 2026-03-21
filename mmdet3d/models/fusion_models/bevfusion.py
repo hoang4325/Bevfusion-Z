@@ -1,4 +1,4 @@
-# Modified by UMONS-Numediart, Ratha SIV in 2026.
+
 
 from typing import Any, Dict, List, Optional
 
@@ -221,7 +221,9 @@ class BEVFusion(Base3DFusionModel):
 
         return sensor_order
 
-    def _assert_fuser_compatibility(self, features: List[torch.Tensor]) -> None:
+    def _assert_fuser_compatibility(
+        self, features: List[torch.Tensor], sensor_order: Optional[List[str]] = None
+    ) -> None:
         if self.fuser is None:
             return
 
@@ -235,21 +237,36 @@ class BEVFusion(Base3DFusionModel):
         expected_channels = getattr(self.fuser, "in_channels", None)
         if expected_channels is None:
             return
-        if isinstance(expected_channels, int):
-            expected_channels = [expected_channels]
-        expected_channels = [int(x) for x in expected_channels]
         actual_channels = [int(feat.shape[1]) for feat in features]
+        feature_order = list(sensor_order) if sensor_order is not None else list(self.sensor_order)
+
+        if isinstance(expected_channels, dict):
+            missing_sensors = [
+                sensor for sensor in feature_order if sensor not in expected_channels
+            ]
+            if missing_sensors:
+                raise ValueError(
+                    "Fuser in_channels mapping is missing sensors required by the current "
+                    f"feature order. missing={missing_sensors}, "
+                    f"available={list(expected_channels.keys())}, feature_order={feature_order}"
+                )
+            expected_channels = [int(expected_channels[sensor]) for sensor in feature_order]
+        else:
+            if isinstance(expected_channels, int):
+                expected_channels = [expected_channels]
+            expected_channels = [int(x) for x in expected_channels]
 
         if len(expected_channels) != len(actual_channels):
             raise ValueError(
                 f"Fuser expects {len(expected_channels)} inputs ({expected_channels}), "
-                f"but got {len(actual_channels)} features ({actual_channels})."
+                f"but got {len(actual_channels)} features ({actual_channels}) "
+                f"in feature_order={feature_order}."
             )
 
         if expected_channels != actual_channels:
             raise ValueError(
                 f"Fuser in_channels mismatch. expected={expected_channels}, actual={actual_channels}, "
-                f"sensor_order={self.sensor_order}"
+                f"feature_order={feature_order}"
             )
 
     def init_weights(self) -> None:
@@ -471,10 +488,14 @@ class BEVFusion(Base3DFusionModel):
         if not self.training:
             # avoid OOM
             features = features[::-1]
+            ordered_sensors = ordered_sensors[::-1]
 
         if self.fuser is not None:
-            self._assert_fuser_compatibility(features)
-            x = self.fuser(features)
+            self._assert_fuser_compatibility(features, ordered_sensors)
+            if self.fuser.__class__.__name__ == "SEFuser":
+                x = self.fuser(features, sensor_order=ordered_sensors)
+            else:
+                x = self.fuser(features)
             if self._instrument_active_this_step():
                 instrumentation_stats.update(
                     self._collect_conv_fuser_stats(ordered_sensors, feature_by_sensor)
