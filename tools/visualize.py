@@ -81,6 +81,13 @@ def main() -> None:
     parser.add_argument("--bbox-score", type=float, default=None)
     parser.add_argument("--map-score", type=float, default=0.5)
     parser.add_argument("--out-dir", type=str, default="viz")
+    parser.add_argument("--draw-heading", dest="draw_heading", action="store_true")
+    parser.add_argument("--no-draw-heading", dest="draw_heading", action="store_false")
+    parser.add_argument("--draw-velocity", dest="draw_velocity", action="store_true")
+    parser.add_argument("--no-draw-velocity", dest="draw_velocity", action="store_false")
+    parser.add_argument("--vel-scale", type=float, default=2.0)
+    parser.add_argument("--min-speed", type=float, default=0.2)
+    parser.set_defaults(draw_heading=True, draw_velocity=True)
     args, opts = parser.parse_known_args()
 
     configs.load(args.config, recursive=True)
@@ -118,6 +125,7 @@ def main() -> None:
     for data in tqdm(dataflow):
         metas = data["metas"].data[0][0]
         name = "{}-{}".format(metas["timestamp"], metas["token"])
+        scores = None
 
         if args.mode == "pred":
             with torch.inference_mode():
@@ -185,9 +193,14 @@ def main() -> None:
                 lidar,
                 bboxes=bboxes,
                 labels=labels,
+                scores=scores,
                 xlim=[cfg.point_cloud_range[d] for d in [0, 3]],
                 ylim=[cfg.point_cloud_range[d] for d in [1, 4]],
                 classes=cfg.object_classes,
+                draw_heading=args.draw_heading,
+                draw_velocity=args.draw_velocity,
+                vel_scale=args.vel_scale,
+                min_speed=args.min_speed,
             )
 
         radar = extract_points_array(data, "radar")
@@ -197,9 +210,14 @@ def main() -> None:
                 radar,
                 bboxes=bboxes,
                 labels=labels,
+                scores=scores,
                 xlim=[cfg.point_cloud_range[d] for d in [0, 3]],
                 ylim=[cfg.point_cloud_range[d] for d in [1, 4]],
                 classes=cfg.object_classes,
+                draw_heading=args.draw_heading,
+                draw_velocity=args.draw_velocity,
+                vel_scale=args.vel_scale,
+                min_speed=args.min_speed,
             )
 
         if masks is not None:
