@@ -27,6 +27,7 @@ OBJECT_PALETTE = {
     "pedestrian": (0, 0, 230),
     "traffic_cone": (47, 79, 79),
 }
+DEFAULT_OBJECT_COLOR = (192, 192, 192)
 
 MAP_PALETTE = {
     "drivable_area": (166, 206, 227),
@@ -66,6 +67,15 @@ def _get_box_name(
     if classes is None or label < 0 or label >= len(classes):
         return str(label)
     return classes[label]
+
+
+def _get_box_color(
+    name: str,
+    color: Optional[Tuple[int, int, int]] = None,
+) -> Tuple[int, int, int]:
+    if color is not None:
+        return color
+    return OBJECT_PALETTE.get(name, DEFAULT_OBJECT_COLOR)
 
 
 def _get_box_velocity_xy(
@@ -314,7 +324,7 @@ def visualize_camera(
                     canvas,
                     coords[index, start].astype(np.int64),
                     coords[index, end].astype(np.int64),
-                    color or OBJECT_PALETTE[name],
+                    _get_box_color(name, color),
                     thickness,
                     cv2.LINE_AA,
                 )
@@ -367,7 +377,7 @@ def visualize_lidar(
                 coords[index, :, 0],
                 coords[index, :, 1],
                 linewidth=thickness,
-                color=np.array(color or OBJECT_PALETTE[name]) / 255,
+                color=np.array(_get_box_color(name, color)) / 255,
             )
         _draw_bev_box_overlays(
             ax,
